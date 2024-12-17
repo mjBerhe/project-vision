@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { sum } from "lodash";
 import {
   useReactTable,
   getCoreRowModel,
@@ -7,105 +8,20 @@ import {
   CellContext,
 } from "@tanstack/react-table";
 
-import type { DebugItem, Tag, RollForwardItem } from "../types/roll-forward.types";
-
-const OUTPUT_PATH =
-  "C:/Users/mattberhe/pALM/pALM2.1_Sidecar_GDN_Assets/pALMLiability/pALMLauncher/data_GDNBMA_03312024_output/GDNSidecar_3.31_BaseCombined_Tax_wSwap/DebugInfo_Scenario_Sen_0001_0.csv";
+import type {
+  DebugItem,
+  Tag,
+  RollForwardItem,
+  BalanceReconciliationItem,
+} from "../types/roll-forward.types";
+import { cn } from "../utils/global";
+import { useDataLong } from "../hooks/useDataLong";
 
 type DataLong = {
   name: DebugItem;
   tag: Tag;
   values: string[];
 };
-
-const targetNames: Set<DebugItem> = new Set([
-  "MarketValue_MTM_0_NoChange",
-  "MarketValue_MTM_1_Credit",
-  "MarketValue_MTM_2_Time",
-  "MarketValue_MTM_3_MoveAlongCurve",
-  "MarketValue_MTM_4_MaturityAmort",
-  "mv_mtm_gain_loss",
-  "MVafterMTM",
-  "EquityPositionPreReturn",
-  "equity_MTM_due_return",
-  "MVpostEquityGain",
-  "LiabilityCF_combined",
-  "swapcashflow",
-  "public_maturity_pmt",
-  "private_maturity_pmt",
-  "cml_maturity_pmt",
-  "clo_maturity_pmt",
-  "cmbs_maturity_pmt",
-  "publicclo_maturity_pmt",
-  "equity_maturity_pmt",
-  "public_interest_pmt",
-  "private_interest_pmt",
-  "cml_interest_pmt",
-  "cmbs_interest_pmt",
-  "publicclo_interest_pmt",
-  "clo_interest_pmt",
-  "equity_interest_pmt",
-  "public_mort_pmt",
-  "private_mort_pmt",
-  "cml_mort_pmt",
-  "clo_mort_pmt",
-  "cmbs_mort_pmt",
-  "publicclo_mort_pmt",
-  "equity_mort_pmt",
-  "total_default_expense",
-  "total_investment_expense",
-  "other_investmentexpense",
-  "otherexpense",
-  "loc_cost",
-  "investableEquityLimitSales",
-  "Sell_Reinvest",
-  "Normal_Activity_Class_Buy_Public",
-  "Normal_Activity_Class_Buy_Private",
-  "Normal_Activity_Class_Buy_CML",
-  "Normal_Activity_Class_Buy_CLO",
-  "Normal_Activity_Class_Buy_PublicCLO",
-  "Normal_Activity_Class_Buy_CMBS",
-  "Normal_Activity_Class_Buy_Equity",
-  "Normal_Activity_Class_Sell_Public",
-  "Normal_Activity_Class_Sell_Private",
-  "Normal_Activity_Class_Sell_CML",
-  "Normal_Activity_Class_Sell_CLO",
-  "Normal_Activity_Class_Sell_PublicCLO",
-  "Normal_Activity_Class_Sell_CMBS",
-  "Normal_Activity_Class_Sell_Equity",
-  "transaction_cost_reinvest_sell",
-  "transaction_cost_reinvest_buy",
-  "MVafterReinvestSell_new",
-  "Rebalancing_Activity_Class_Buy_Public",
-  "Rebalancing_Activity_Class_Buy_Private",
-  "Rebalancing_Activity_Class_Buy_CML",
-  "Rebalancing_Activity_Class_Buy_CLO",
-  "Rebalancing_Activity_Class_Buy_PublicClo",
-  "Rebalancing_Activity_Class_Buy_CMBS",
-  "Rebalancing_Activity_Class_Buy_Equity",
-  "Rebalancing_Activity_Class_Sell_Public",
-  "Rebalancing_Activity_Class_Sell_Private",
-  "Rebalancing_Activity_Class_Sell_CML",
-  "Rebalancing_Activity_Class_Sell_CLO",
-  "Rebalancing_Activity_Class_Sell_PublicClo",
-  "Rebalancing_Activity_Class_Sell_CMBS",
-  "Rebalancing_Activity_Class_Sell_Equity",
-  "transaction_cost_rebalance_sell",
-  "transaction_cost_rebalance_buy",
-  "MVafterRebalance",
-  "BSCR_CAL",
-  "BVbeforeDividend",
-  "surplus",
-  "targetBSCRlevel",
-  "fm_us_stat",
-  "BSCR_RiskMargin",
-  "tax",
-  "Dividends_neg",
-  "Dividends",
-  "mv_mtm_pre_period",
-  "BVEndOfPeriod",
-  "npv_bel_asset_run_noequity",
-]);
 
 const rollForwardTargetNames: Set<RollForwardItem> = new Set([
   "Assets BOP",
@@ -139,97 +55,15 @@ const rollForwardTargetNames: Set<RollForwardItem> = new Set([
   "Assets EOP",
 ]);
 
-const tagMapping: Record<DebugItem, Tag> = {
-  MarketValue_MTM_0_NoChange: "Assets BOP",
-  MarketValue_MTM_1_Credit: "MV Post Credit Spread Change",
-  MarketValue_MTM_2_Time: "MV Passage of Time",
-  MarketValue_MTM_3_MoveAlongCurve: "MV Advancing on the Curve",
-  MarketValue_MTM_4_MaturityAmort: "MV Temp Loss from Maturity and Amort",
-  mv_mtm_gain_loss: "MTM Total Gain Loss",
-  MVafterMTM: "Assets Post MTM",
-  EquityPositionPreReturn: "Equity Position Pre Return",
-  equity_MTM_due_return: "Equity Returns",
-  MVpostEquityGain: "Assets Post Equity Return",
-  LiabilityCF_combined: "Liability Cash Flow",
-  swapcashflow: "Swap Cash Flow",
-  public_maturity_pmt: "Maturities",
-  private_maturity_pmt: "Maturities",
-  cml_maturity_pmt: "Maturities",
-  clo_maturity_pmt: "Maturities",
-  cmbs_maturity_pmt: "Maturities",
-  publicclo_maturity_pmt: "Maturities",
-  equity_maturity_pmt: "Maturities",
-  public_interest_pmt: "Coupon Payments",
-  private_interest_pmt: "Coupon Payments",
-  cml_interest_pmt: "Coupon Payments",
-  cmbs_interest_pmt: "Coupon Payments",
-  publicclo_interest_pmt: "Coupon Payments",
-  clo_interest_pmt: "Coupon Payments",
-  equity_interest_pmt: "Coupon Payments",
-  public_mort_pmt: "Amortization",
-  private_mort_pmt: "Amortization",
-  cml_mort_pmt: "Amortization",
-  clo_mort_pmt: "Amortization",
-  cmbs_mort_pmt: "Amortization",
-  publicclo_mort_pmt: "Amortization",
-  equity_mort_pmt: "Amortization",
-  total_default_expense: "Defaults",
-  total_investment_expense: "Investment Expense",
-  other_investmentexpense: "Fixed Overhead",
-  otherexpense: "AUM Expense",
-  loc_cost: "LOC Cost",
-  investableEquityLimitSales: "Forced Sales",
-  Sell_Reinvest: "Total to Reinvest/Sell",
-  Normal_Activity_Class_Buy_Public: "Normal Purchases",
-  Normal_Activity_Class_Buy_Private: "Normal Purchases",
-  Normal_Activity_Class_Buy_CML: "Normal Purchases",
-  Normal_Activity_Class_Buy_CLO: "Normal Purchases",
-  Normal_Activity_Class_Buy_PublicCLO: "Normal Purchases",
-  Normal_Activity_Class_Buy_CMBS: "Normal Purchases",
-  Normal_Activity_Class_Buy_Equity: "Normal Purchases",
-  Normal_Activity_Class_Sell_Public: "Normal Sales",
-  Normal_Activity_Class_Sell_Private: "Normal Sales",
-  Normal_Activity_Class_Sell_CML: "Normal Sales",
-  Normal_Activity_Class_Sell_CLO: "Normal Sales",
-  Normal_Activity_Class_Sell_PublicCLO: "Normal Sales",
-  Normal_Activity_Class_Sell_CMBS: "Normal Sales",
-  Normal_Activity_Class_Sell_Equity: "Normal Sales",
-  transaction_cost_reinvest_sell: "Reinvest/Sell Transaction Costs",
-  transaction_cost_reinvest_buy: "Reinvest/Sell Transaction Costs",
-  MVafterReinvestSell_new: "Assets Post Reinvestment",
-  Rebalancing_Activity_Class_Buy_Public: "Rebalancing Purchases",
-  Rebalancing_Activity_Class_Buy_Private: "Rebalancing Purchases",
-  Rebalancing_Activity_Class_Buy_CML: "Rebalancing Purchases",
-  Rebalancing_Activity_Class_Buy_CLO: "Rebalancing Purchases",
-  Rebalancing_Activity_Class_Buy_PublicClo: "Rebalancing Purchases",
-  Rebalancing_Activity_Class_Buy_CMBS: "Rebalancing Purchases",
-  Rebalancing_Activity_Class_Buy_Equity: "Rebalancing Purchases",
-  Rebalancing_Activity_Class_Sell_Public: "Rebalancing Sales",
-  Rebalancing_Activity_Class_Sell_Private: "Rebalancing Sales",
-  Rebalancing_Activity_Class_Sell_CML: "Rebalancing Sales",
-  Rebalancing_Activity_Class_Sell_CLO: "Rebalancing Sales",
-  Rebalancing_Activity_Class_Sell_PublicClo: "Rebalancing Sales",
-  Rebalancing_Activity_Class_Sell_CMBS: "Rebalancing Sales",
-  Rebalancing_Activity_Class_Sell_Equity: "Rebalancing Sales",
-  transaction_cost_rebalance_sell: "Rebalancing Transaction Costs",
-  transaction_cost_rebalance_buy: "Rebalancing Transaction Costs",
-  MVafterRebalance: "Assets Post Rebalance",
-  BSCR_CAL: "BSCR",
-  BVbeforeDividend: "BV Before Dividend",
-  surplus: "Surplus BOP",
-  // surplus: "Surplus EOP Post Dividend",  two surplus??
-  targetBSCRlevel: "BSCR Target",
-  fm_us_stat: "US Stat",
-  BSCR_RiskMargin: "Risk Margin",
-  tax: "Taxes",
-  Dividends_neg: "Dividends",
-  Dividends: "Dividends",
-  mv_mtm_pre_period: "Assets EOP",
-  BVEndOfPeriod: "BV EOP",
-  npv_bel_asset_run_noequity: "BEL No Equity",
-};
+const balanceReconciliationTargetNames: Set<BalanceReconciliationItem> = new Set([
+  "Start",
+  "Change",
+  "End",
+  "Unaccounted For",
+  // "Total Unaccounted For",
+]);
 
-const sumColumns = (data: string[][]): number[] => {
+const sumColumns = (data: (string[] | number[])[]): number[] => {
   if (data.length === 0) return [];
 
   return data[0].map((_, colIndex) =>
@@ -254,9 +88,12 @@ const subtractRows = (row1: string[], row2: string[]): number[] => {
   });
 };
 
-const formulas: Record<
+const rollForwardFormulas: Record<
   RollForwardItem,
-  (data: DataLong[]) => { name: RollForwardItem; values: number[] }
+  (data: DataLong[]) => {
+    name: RollForwardItem;
+    values: number[];
+  }
 > = {
   "Assets BOP": (dataLong: DataLong[]) => ({
     name: "Assets BOP",
@@ -308,10 +145,205 @@ const formulas: Record<
       dataLong.find((x) => x.name === "mv_mtm_gain_loss")?.values.map((x) => Number(x)) ||
       [],
   }),
+  "Equity Returns": (dataLong: DataLong[]) => ({
+    name: "Equity Returns",
+    values: sumColumns(
+      dataLong.filter((x) => x.tag === "Equity Returns").map((x) => x.values)
+    ),
+  }),
+  "Swap Cash Flow": (dataLong: DataLong[]) => ({
+    name: "Swap Cash Flow",
+    values: sumColumns(
+      dataLong.filter((x) => x.tag === "Swap Cash Flow").map((x) => x.values)
+    ),
+  }),
+  Maturities: (dataLong: DataLong[]) => ({
+    name: "Maturities",
+    values: sumColumns(
+      dataLong.filter((x) => x.tag === "Maturities").map((x) => x.values)
+    ),
+  }),
+  "Coupon Payments": (dataLong: DataLong[]) => ({
+    name: "Coupon Payments",
+    values: sumColumns(
+      dataLong.filter((x) => x.tag === "Coupon Payments").map((x) => x.values)
+    ),
+  }),
+  Amortization: (dataLong: DataLong[]) => ({
+    name: "Amortization",
+    values: sumColumns(
+      dataLong.filter((x) => x.tag === "Amortization").map((x) => x.values)
+    ),
+  }),
+  Defaults: (dataLong: DataLong[]) => ({
+    name: "Defaults",
+    values: sumColumns(dataLong.filter((x) => x.tag === "Defaults").map((x) => x.values)),
+  }),
+  "Investment Expense": (dataLong: DataLong[]) => ({
+    name: "Investment Expense",
+    values: sumColumns(
+      dataLong.filter((x) => x.tag === "Investment Expense").map((x) => x.values)
+    ),
+  }),
+  "Fixed Overhead": (dataLong: DataLong[]) => ({
+    name: "Fixed Overhead",
+    values: sumColumns(
+      dataLong.filter((x) => x.tag === "Fixed Overhead").map((x) => x.values)
+    ),
+  }),
+  "AUM Expense": (dataLong: DataLong[]) => ({
+    name: "AUM Expense",
+    values: sumColumns(
+      dataLong.filter((x) => x.tag === "AUM Expense").map((x) => x.values)
+    ),
+  }),
+  "Liability Cash Flow": (dataLong: DataLong[]) => ({
+    name: "Liability Cash Flow",
+    values: sumColumns(
+      dataLong.filter((x) => x.tag === "Liability Cash Flow").map((x) => x.values)
+    ),
+  }),
+  "Forced Sales": (dataLong: DataLong[]) => ({
+    name: "Forced Sales",
+    values: sumColumns(
+      dataLong.filter((x) => x.tag === "Forced Sales").map((x) => x.values)
+    ),
+  }),
+  "Total to Reinvest/Sell": (dataLong: DataLong[]) => ({
+    name: "Total to Reinvest/Sell",
+    values: sumColumns(
+      dataLong.filter((x) => x.tag === "Total to Reinvest/Sell").map((x) => x.values)
+    ),
+  }),
+  "Normal Purchases": (dataLong: DataLong[]) => ({
+    name: "Normal Purchases",
+    values: sumColumns(
+      dataLong.filter((x) => x.tag === "Normal Purchases").map((x) => x.values)
+    ),
+  }),
+  "Normal Sales": (dataLong: DataLong[]) => ({
+    name: "Normal Sales",
+    values: sumColumns(
+      dataLong.filter((x) => x.tag === "Normal Sales").map((x) => x.values)
+    ),
+  }),
+  "Reinvest/Sell Transaction Costs": (dataLong: DataLong[]) => ({
+    name: "Reinvest/Sell Transaction Costs",
+    values: sumColumns(
+      dataLong
+        .filter((x) => x.tag === "Reinvest/Sell Transaction Costs")
+        .map((x) => x.values)
+    ),
+  }),
+  "Assets Post Reinvestment": (dataLong: DataLong[]) => ({
+    name: "Assets Post Reinvestment",
+    values: sumColumns(
+      dataLong.filter((x) => x.tag === "Assets Post Reinvestment").map((x) => x.values)
+    ),
+  }),
+  "Rebalancing Purchases": (dataLong: DataLong[]) => ({
+    name: "Rebalancing Purchases",
+    values: sumColumns(
+      dataLong.filter((x) => x.tag === "Rebalancing Purchases").map((x) => x.values)
+    ),
+  }),
+  "Rebalancing Sales": (dataLong: DataLong[]) => ({
+    name: "Rebalancing Sales",
+    values: sumColumns(
+      dataLong.filter((x) => x.tag === "Rebalancing Sales").map((x) => x.values)
+    ),
+  }),
+  "Rebalancing Transaction Costs": (dataLong: DataLong[]) => ({
+    name: "Rebalancing Transaction Costs",
+    values: sumColumns(
+      dataLong
+        .filter((x) => x.tag === "Rebalancing Transaction Costs")
+        .map((x) => x.values)
+    ),
+  }),
+  "Assets Post Rebalance": (dataLong: DataLong[]) => ({
+    name: "Assets Post Rebalance",
+    values: sumColumns(
+      dataLong.filter((x) => x.tag === "Assets Post Rebalance").map((x) => x.values)
+    ),
+  }),
+  Dividends: (dataLong: DataLong[]) => ({
+    name: "Dividends",
+    values: sumColumns(
+      dataLong.filter((x) => x.tag === "Dividends").map((x) => x.values)
+    ),
+  }),
+  Taxes: (dataLong: DataLong[]) => ({
+    name: "Taxes",
+    values: sumColumns(dataLong.filter((x) => x.tag === "Taxes").map((x) => x.values)),
+  }),
+  "Assets EOP": (dataLong: DataLong[]) => ({
+    name: "Assets EOP",
+    values: sumColumns(
+      dataLong.filter((x) => x.tag === "Assets EOP").map((x) => x.values)
+    ),
+  }),
+};
+
+const balanceReconFormulas: Record<
+  BalanceReconciliationItem,
+  (data: DataLong[]) => { name: BalanceReconciliationItem; values: number[] }
+> = {
+  Start: (dataLong: DataLong[]) => ({
+    name: "Start",
+    values: sumColumns(
+      dataLong.filter((x) => x.tag === "Assets BOP").map((x) => x.values)
+    ),
+  }),
+  // Change is summing all these columns in dataLong
+  Change: (dataLong: DataLong[]) => ({
+    name: "Change",
+    values: sumColumns([
+      rollForwardFormulas["MTM Gain Loss from Credit Grading"](dataLong).values,
+      rollForwardFormulas["MTM Gain Loss from Passage of Time"](dataLong).values,
+      rollForwardFormulas["MTM Gain Loss from Interest Rates"](dataLong).values,
+      ...dataLong
+        .filter((x) =>
+          [
+            "Equity Returns",
+            "Swap Cash Flow",
+            "Coupon Payments",
+            "Defaults",
+            "Investment Expense",
+            "Fixed Overhead",
+            "AUM Expense",
+            "Liability Cash Flow",
+            "Reinvest/Sell Transaction Costs",
+            "Rebalancing Transaction Costs",
+            "Dividends",
+            "Taxes",
+          ].includes(x.tag)
+        )
+        .map((x) => x.values),
+    ]),
+  }),
+  End: (dataLong: DataLong[]) => ({
+    name: "End",
+    values: sumColumns(
+      dataLong.filter((x) => x.tag === "Assets EOP").map((x) => x.values)
+    ),
+  }),
+  // TODO: need to work out why some arrays start with 0 and some dont
+  "Unaccounted For": (dataLong: DataLong[]) => ({
+    name: "Unaccounted For",
+    values: sumColumns([
+      balanceReconFormulas["Start"](dataLong).values,
+      balanceReconFormulas["Change"](dataLong).values,
+      balanceReconFormulas["End"](dataLong).values.map((value) => -value),
+    ]),
+  }),
+  // "Total Unaccounted For": (dataLong: DataLong[]) => ({
+  //   name: "Total Unaccounted For",
+  //   values: sumColumns([])
+  // })
 };
 
 const RollForward: React.FC = () => {
-  const [dataLong, setDataLong] = useState<DataLong[]>([]);
   const [rollForwardData, setRollForwardData] = useState<
     {
       name: RollForwardItem;
@@ -319,43 +351,33 @@ const RollForward: React.FC = () => {
     }[]
   >();
 
-  // load raw palm data file and create data long
-  useEffect(() => {
-    const loadOutput = async () => {
-      const data = await invoke<Record<DebugItem, string[]>>("load_csv_file", {
-        path: OUTPUT_PATH,
-      });
-
-      // creating Data Long
-      const dataLong = Object.entries(data)
-        .filter(([name]) => targetNames.has(name))
-        .map(([name, values]) => ({
-          name,
-          tag: tagMapping[name] || "Uncategorized",
-          values,
-        }));
-      // console.log(dataLong);
-      setDataLong(dataLong);
-    };
-
-    loadOutput();
-  }, []);
+  const { dataLong } = useDataLong();
 
   // if data long, create roll forward summary data
   useEffect(() => {
     const createRollForwardSummaryData = (dataLong: DataLong[]) => {
       // console.log("dataLong:", dataLong);
       const dataRows = Array.from(rollForwardTargetNames)
-        .filter((item) => formulas[item])
-        .map((item) => formulas[item](dataLong));
+        .filter((item) => rollForwardFormulas[item])
+        .map((item) => rollForwardFormulas[item](dataLong));
 
+      return dataRows;
+    };
+
+    const createBalanceReconiliationData = (dataLong: DataLong[]) => {
+      const dataRows = Array.from(balanceReconciliationTargetNames)
+        .filter((item) => balanceReconFormulas[item])
+        .map((item) => balanceReconFormulas[item](dataLong));
       return dataRows;
     };
 
     if (dataLong) {
       const summaryData = createRollForwardSummaryData(dataLong);
       setRollForwardData(summaryData);
-      console.log(summaryData);
+      // console.log(summaryData);
+
+      const balanceData = createBalanceReconiliationData(dataLong);
+      console.log(balanceData);
     }
   }, [dataLong]);
 
@@ -366,17 +388,28 @@ const RollForward: React.FC = () => {
     const dynamicColumns = Array.from({ length: numberOfColumns }, (_, i) => ({
       accessorKey: `${i + 1}`, // This is where we are skipping one
       header: `${i + 1}`,
-      cell: (x: CellContext<any, string | number>) => (
-        <p className="w-[220px] text-center">{x.getValue()}</p>
+      cell: (x: CellContext<any, number>) => (
+        <td className="w-[115px] flex justify-between">
+          <span>$</span>
+          <span>
+            {x.getValue() === 0
+              ? "-"
+              : Math.round(x.getValue()) === 0
+              ? 0
+              : x.getValue() < 0
+              ? `(${Math.abs(Math.round(x.getValue())).toLocaleString()})`
+              : Math.round(x.getValue()).toLocaleString()}
+          </span>
+        </td>
       ),
     }));
 
     return [
       {
-        accessorKey: "name",
-        header: "Name",
+        accessorKey: "month",
+        header: "Months",
         cell: (x: CellContext<any, string | number>) => (
-          <p className="w-[300px] text-left">{x.getValue()}</p>
+          <p className="w-[265px] text-left">{x.getValue()}</p>
         ),
       },
       ...dynamicColumns,
@@ -385,7 +418,7 @@ const RollForward: React.FC = () => {
 
   const transformedData = useMemo(() => {
     return rollForwardData?.map((item) => {
-      const row: Record<string, number | string> = { name: item.name };
+      const row: Record<string, number | string> = { month: item.name };
       item.values.forEach((value, index) => {
         row[`${index}`] = value;
       });
@@ -399,31 +432,79 @@ const RollForward: React.FC = () => {
     getCoreRowModel: getCoreRowModel(),
   });
 
+  const totalUnaccountedFor = (dataLong: DataLong[]) => {
+    const unAccountedForValues = balanceReconFormulas["Unaccounted For"](
+      dataLong
+    ).values.slice(1, 240);
+    console.log(sum(unAccountedForValues));
+  };
+
+  // totalUnaccountedFor(dataLong);
+
+  const isHighlighted = (columnId: string): boolean => {
+    return [
+      "Assets BOP",
+      "MTM Total Gain Loss",
+      "Equity Returns",
+      "Total to Reinvest/Sell",
+      "Assets Post Reinvestment",
+      "Assets Post Rebalance",
+      "Assets EOP",
+    ].includes(columnId)
+      ? true
+      : false;
+  };
+
   return (
     <main className="container mx-auto min-h-screen">
-      <div className="py-8 flex flex-col w-full">
-        <table className="">
+      <div className="py-8 flex flex-col w-full overflow-x-auto overflow-y-auto">
+        <div>
+          <h3 className="text-xl font-semibold">Rollforward Summary</h3>
+        </div>
+
+        <table className="mt-4 min-w-full border border-dark-600 border-collapse">
           <thead>
             {table.getHeaderGroups().map((headerGroup) => (
-              <tr key={headerGroup.id} className="">
-                {headerGroup.headers.map((header) => (
-                  <th key={header.id} style={{ width: 200 }}>
+              <tr key={headerGroup.id} className="divide-x divide-dark-600">
+                {headerGroup.headers.map((header, i) => (
+                  <th
+                    key={header.id}
+                    className={cn(
+                      "bg-dark-800 sticky top-0 px-4 py-2 text-right text-sm font-medium text-gray-300",
+                      i === 0 && "text-left"
+                    )}
+                  >
                     {flexRender(header.column.columnDef.header, header.getContext())}
                   </th>
                 ))}
               </tr>
             ))}
           </thead>
-          <tbody>
-            {table.getRowModel().rows.map((row) => (
-              <tr key={row.id} className="">
-                {row.getVisibleCells().map((cell) => (
-                  <td key={cell.id} className="">
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </td>
-                ))}
-              </tr>
-            ))}
+          <tbody className="">
+            {table.getRowModel().rows.map((row, i) => {
+              return (
+                <tr
+                  key={row.id}
+                  className={cn(
+                    isHighlighted(row.renderValue("month"))
+                      ? "border-y border-white divide-x divide-dark-600"
+                      : "divide-x divide-dark-600"
+                  )}
+                >
+                  {row.getVisibleCells().map((cell, i) => (
+                    <td
+                      key={cell.id}
+                      className={cn(
+                        "px-4 py-2 whitespace-nowrap bg-dark-700 text-right text-sm text-gray-100",
+                        !isHighlighted(row.renderValue("month")) && i === 0 ? "pl-8" : ""
+                      )}
+                    >
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </td>
+                  ))}
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

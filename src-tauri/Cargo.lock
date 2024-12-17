@@ -2510,6 +2510,7 @@ name = "project-vision"
 version = "0.1.0"
 dependencies = [
  "csv",
+ "regex",
  "serde",
  "serde_json",
  "tauri",

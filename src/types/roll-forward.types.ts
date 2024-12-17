@@ -160,3 +160,6 @@ export type RollForwardItem =
   | "Dividends"
   | "Taxes"
   | "Assets EOP";
+
+export type BalanceReconciliationItem = "Start" | "Change" | "End" | "Unaccounted For";
+// | "Total Unaccounted For";

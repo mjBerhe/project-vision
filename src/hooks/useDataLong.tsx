@@ -1,0 +1,226 @@
+import { useState, useEffect } from "react";
+import { invoke } from "@tauri-apps/api/core";
+
+import type { DebugItem, Tag } from "../types/roll-forward.types";
+
+const OUTPUT_PATH =
+  "C:/Users/mattberhe/pALM/pALM2.1_Sidecar_GDN_Assets/pALMLiability/pALMLauncher/data_GDNBMA_03312024_output/GDNSidecar_3.31_BaseCombined_Tax_wSwap/DebugInfo_Scenario_Sen_0001_0.csv";
+
+const targetNames: Set<DebugItem> = new Set([
+  "MarketValue_MTM_0_NoChange",
+  "MarketValue_MTM_1_Credit",
+  "MarketValue_MTM_2_Time",
+  "MarketValue_MTM_3_MoveAlongCurve",
+  "MarketValue_MTM_4_MaturityAmort",
+  "mv_mtm_gain_loss",
+  "MVafterMTM",
+  "EquityPositionPreReturn",
+  "equity_MTM_due_return",
+  "MVpostEquityGain",
+  "LiabilityCF_combined",
+  "swapcashflow",
+  "public_maturity_pmt",
+  "private_maturity_pmt",
+  "cml_maturity_pmt",
+  "clo_maturity_pmt",
+  "cmbs_maturity_pmt",
+  "publicclo_maturity_pmt",
+  "equity_maturity_pmt",
+  "public_interest_pmt",
+  "private_interest_pmt",
+  "cml_interest_pmt",
+  "cmbs_interest_pmt",
+  "publicclo_interest_pmt",
+  "clo_interest_pmt",
+  "equity_interest_pmt",
+  "public_mort_pmt",
+  "private_mort_pmt",
+  "cml_mort_pmt",
+  "clo_mort_pmt",
+  "cmbs_mort_pmt",
+  "publicclo_mort_pmt",
+  "equity_mort_pmt",
+  "total_default_expense",
+  "total_investment_expense",
+  "other_investmentexpense",
+  "otherexpense",
+  "loc_cost",
+  "investableEquityLimitSales",
+  "Sell_Reinvest",
+  "Normal_Activity_Class_Buy_Public",
+  "Normal_Activity_Class_Buy_Private",
+  "Normal_Activity_Class_Buy_CML",
+  "Normal_Activity_Class_Buy_CLO",
+  "Normal_Activity_Class_Buy_PublicCLO",
+  "Normal_Activity_Class_Buy_CMBS",
+  "Normal_Activity_Class_Buy_Equity",
+  "Normal_Activity_Class_Sell_Public",
+  "Normal_Activity_Class_Sell_Private",
+  "Normal_Activity_Class_Sell_CML",
+  "Normal_Activity_Class_Sell_CLO",
+  "Normal_Activity_Class_Sell_PublicCLO",
+  "Normal_Activity_Class_Sell_CMBS",
+  "Normal_Activity_Class_Sell_Equity",
+  "transaction_cost_reinvest_sell",
+  "transaction_cost_reinvest_buy",
+  "MVafterReinvestSell_new",
+  "Rebalancing_Activity_Class_Buy_Public",
+  "Rebalancing_Activity_Class_Buy_Private",
+  "Rebalancing_Activity_Class_Buy_CML",
+  "Rebalancing_Activity_Class_Buy_CLO",
+  "Rebalancing_Activity_Class_Buy_PublicClo",
+  "Rebalancing_Activity_Class_Buy_CMBS",
+  "Rebalancing_Activity_Class_Buy_Equity",
+  "Rebalancing_Activity_Class_Sell_Public",
+  "Rebalancing_Activity_Class_Sell_Private",
+  "Rebalancing_Activity_Class_Sell_CML",
+  "Rebalancing_Activity_Class_Sell_CLO",
+  "Rebalancing_Activity_Class_Sell_PublicClo",
+  "Rebalancing_Activity_Class_Sell_CMBS",
+  "Rebalancing_Activity_Class_Sell_Equity",
+  "transaction_cost_rebalance_sell",
+  "transaction_cost_rebalance_buy",
+  "MVafterRebalance",
+  "BSCR_CAL",
+  "BVbeforeDividend",
+  "surplus",
+  "targetBSCRlevel",
+  "fm_us_stat",
+  "BSCR_RiskMargin",
+  "tax",
+  "Dividends_neg",
+  "Dividends",
+  "mv_mtm_pre_period",
+  "BVEndOfPeriod",
+  "npv_bel_asset_run_noequity",
+]);
+
+const tagMapping: Record<DebugItem, Tag> = {
+  MarketValue_MTM_0_NoChange: "Assets BOP",
+  MarketValue_MTM_1_Credit: "MV Post Credit Spread Change",
+  MarketValue_MTM_2_Time: "MV Passage of Time",
+  MarketValue_MTM_3_MoveAlongCurve: "MV Advancing on the Curve",
+  MarketValue_MTM_4_MaturityAmort: "MV Temp Loss from Maturity and Amort",
+  mv_mtm_gain_loss: "MTM Total Gain Loss",
+  MVafterMTM: "Assets Post MTM",
+  EquityPositionPreReturn: "Equity Position Pre Return",
+  equity_MTM_due_return: "Equity Returns",
+  MVpostEquityGain: "Assets Post Equity Return",
+  LiabilityCF_combined: "Liability Cash Flow",
+  swapcashflow: "Swap Cash Flow",
+  public_maturity_pmt: "Maturities",
+  private_maturity_pmt: "Maturities",
+  cml_maturity_pmt: "Maturities",
+  clo_maturity_pmt: "Maturities",
+  cmbs_maturity_pmt: "Maturities",
+  publicclo_maturity_pmt: "Maturities",
+  equity_maturity_pmt: "Maturities",
+  public_interest_pmt: "Coupon Payments",
+  private_interest_pmt: "Coupon Payments",
+  cml_interest_pmt: "Coupon Payments",
+  cmbs_interest_pmt: "Coupon Payments",
+  publicclo_interest_pmt: "Coupon Payments",
+  clo_interest_pmt: "Coupon Payments",
+  equity_interest_pmt: "Coupon Payments",
+  public_mort_pmt: "Amortization",
+  private_mort_pmt: "Amortization",
+  cml_mort_pmt: "Amortization",
+  clo_mort_pmt: "Amortization",
+  cmbs_mort_pmt: "Amortization",
+  publicclo_mort_pmt: "Amortization",
+  equity_mort_pmt: "Amortization",
+  total_default_expense: "Defaults",
+  total_investment_expense: "Investment Expense",
+  other_investmentexpense: "Fixed Overhead",
+  otherexpense: "AUM Expense",
+  loc_cost: "LOC Cost",
+  investableEquityLimitSales: "Forced Sales",
+  Sell_Reinvest: "Total to Reinvest/Sell",
+  Normal_Activity_Class_Buy_Public: "Normal Purchases",
+  Normal_Activity_Class_Buy_Private: "Normal Purchases",
+  Normal_Activity_Class_Buy_CML: "Normal Purchases",
+  Normal_Activity_Class_Buy_CLO: "Normal Purchases",
+  Normal_Activity_Class_Buy_PublicCLO: "Normal Purchases",
+  Normal_Activity_Class_Buy_CMBS: "Normal Purchases",
+  Normal_Activity_Class_Buy_Equity: "Normal Purchases",
+  Normal_Activity_Class_Sell_Public: "Normal Sales",
+  Normal_Activity_Class_Sell_Private: "Normal Sales",
+  Normal_Activity_Class_Sell_CML: "Normal Sales",
+  Normal_Activity_Class_Sell_CLO: "Normal Sales",
+  Normal_Activity_Class_Sell_PublicCLO: "Normal Sales",
+  Normal_Activity_Class_Sell_CMBS: "Normal Sales",
+  Normal_Activity_Class_Sell_Equity: "Normal Sales",
+  transaction_cost_reinvest_sell: "Reinvest/Sell Transaction Costs",
+  transaction_cost_reinvest_buy: "Reinvest/Sell Transaction Costs",
+  MVafterReinvestSell_new: "Assets Post Reinvestment",
+  Rebalancing_Activity_Class_Buy_Public: "Rebalancing Purchases",
+  Rebalancing_Activity_Class_Buy_Private: "Rebalancing Purchases",
+  Rebalancing_Activity_Class_Buy_CML: "Rebalancing Purchases",
+  Rebalancing_Activity_Class_Buy_CLO: "Rebalancing Purchases",
+  Rebalancing_Activity_Class_Buy_PublicClo: "Rebalancing Purchases",
+  Rebalancing_Activity_Class_Buy_CMBS: "Rebalancing Purchases",
+  Rebalancing_Activity_Class_Buy_Equity: "Rebalancing Purchases",
+  Rebalancing_Activity_Class_Sell_Public: "Rebalancing Sales",
+  Rebalancing_Activity_Class_Sell_Private: "Rebalancing Sales",
+  Rebalancing_Activity_Class_Sell_CML: "Rebalancing Sales",
+  Rebalancing_Activity_Class_Sell_CLO: "Rebalancing Sales",
+  Rebalancing_Activity_Class_Sell_PublicClo: "Rebalancing Sales",
+  Rebalancing_Activity_Class_Sell_CMBS: "Rebalancing Sales",
+  Rebalancing_Activity_Class_Sell_Equity: "Rebalancing Sales",
+  transaction_cost_rebalance_sell: "Rebalancing Transaction Costs",
+  transaction_cost_rebalance_buy: "Rebalancing Transaction Costs",
+  MVafterRebalance: "Assets Post Rebalance",
+  BSCR_CAL: "BSCR",
+  BVbeforeDividend: "BV Before Dividend",
+  surplus: "Surplus BOP",
+  // surplus: "Surplus EOP Post Dividend",  two surplus??
+  targetBSCRlevel: "BSCR Target",
+  fm_us_stat: "US Stat",
+  BSCR_RiskMargin: "Risk Margin",
+  tax: "Taxes",
+  Dividends_neg: "Dividends",
+  Dividends: "Dividends",
+  mv_mtm_pre_period: "Assets EOP",
+  BVEndOfPeriod: "BV EOP",
+  npv_bel_asset_run_noequity: "BEL No Equity",
+};
+
+type DataLong = {
+  name: DebugItem;
+  tag: Tag;
+  values: string[];
+};
+
+export const useDataLong = () => {
+  const [dataLong, setDataLong] = useState<DataLong[]>([]);
+
+  useEffect(() => {
+    const loadOutput = async () => {
+      const data = await invoke<Record<DebugItem, string[]>>("read_csv_file", {
+        path: OUTPUT_PATH,
+      });
+
+      const dataLong = Object.entries(data)
+        .filter(([name]) => targetNames.has(name))
+        .map(([name, values]) => ({
+          name,
+          tag: tagMapping[name] || "Uncategorized",
+          values: [
+            "Fixed Overhead",
+            "AUM Expense",
+            "Reinvest/Sell Transaction Costs",
+            "Dividends",
+            "Taxes",
+            "Rebalancing Transaction Costs",
+          ].includes(tagMapping[name])
+            ? values.map((value) => (-value).toString())
+            : values,
+        }));
+      setDataLong(dataLong);
+    };
+
+    loadOutput();
+  }, []);
+
+  return { dataLong };
+};
