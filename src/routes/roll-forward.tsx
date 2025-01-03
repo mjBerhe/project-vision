@@ -7,6 +7,7 @@ import {
   flexRender,
   CellContext,
 } from "@tanstack/react-table";
+import { Switch } from "@headlessui/react";
 
 import type {
   DebugItem,
@@ -14,6 +15,7 @@ import type {
   RollForwardItem,
   BalanceReconciliationItem,
 } from "../types/roll-forward.types";
+import { sumColumns, subtractRows } from "../utils/roll-forward";
 import { cn } from "../utils/global";
 import { useDataLong } from "../hooks/useDataLong";
 
@@ -62,31 +64,6 @@ const balanceReconciliationTargetNames: Set<BalanceReconciliationItem> = new Set
   "Unaccounted For",
   // "Total Unaccounted For",
 ]);
-
-const sumColumns = (data: (string[] | number[])[]): number[] => {
-  if (data.length === 0) return [];
-
-  return data[0].map((_, colIndex) =>
-    data.reduce(
-      (sum, row) => sum + (isNaN(Number(row[colIndex])) ? 0 : Number(row[colIndex])),
-      0
-    )
-  );
-};
-
-const subtractRows = (row1: string[], row2: string[]): number[] => {
-  // Ensure both rows have the same length
-  if (row1.length !== row2.length) {
-    throw new Error("Rows must have the same length");
-  }
-
-  return row1.map((value, index) => {
-    const num1 = Number(value);
-    const num2 = Number(row2[index]);
-    // Return the subtraction result, assuming valid numeric conversion
-    return isNaN(num1) || isNaN(num2) ? 0 : num1 - num2;
-  });
-};
 
 const rollForwardFormulas: Record<
   RollForwardItem,
@@ -343,6 +320,22 @@ const balanceReconFormulas: Record<
   // })
 };
 
+const isHighlighted = (columnId: string): boolean => {
+  return [
+    "Assets BOP",
+    "MTM Total Gain Loss",
+    "Equity Returns",
+    "Total to Reinvest/Sell",
+    "Assets Post Reinvestment",
+    "Assets Post Rebalance",
+    "Assets EOP",
+  ].includes(columnId)
+    ? true
+    : false;
+};
+
+const MONTHS_AMOUNT = 240;
+
 const RollForward: React.FC = () => {
   const [rollForwardData, setRollForwardData] = useState<
     {
@@ -350,6 +343,7 @@ const RollForward: React.FC = () => {
       values: number[];
     }[]
   >();
+  const [thousandToggle, setThousandToggle] = useState<boolean>(true);
 
   const { dataLong } = useDataLong();
 
@@ -377,14 +371,14 @@ const RollForward: React.FC = () => {
       // console.log(summaryData);
 
       const balanceData = createBalanceReconiliationData(dataLong);
-      console.log(balanceData);
+      // console.log(balanceData);
     }
   }, [dataLong]);
 
   const columns = useMemo(() => {
     if (!rollForwardData || rollForwardData.length === 0) return [];
 
-    const numberOfColumns = rollForwardData[0].values.length;
+    const numberOfColumns = MONTHS_AMOUNT ?? rollForwardData[0].values.length;
     const dynamicColumns = Array.from({ length: numberOfColumns }, (_, i) => ({
       accessorKey: `${i + 1}`, // This is where we are skipping one
       header: `${i + 1}`,
@@ -397,8 +391,10 @@ const RollForward: React.FC = () => {
               : Math.round(x.getValue()) === 0
               ? 0
               : x.getValue() < 0
-              ? `(${Math.abs(Math.round(x.getValue())).toLocaleString()})`
-              : Math.round(x.getValue()).toLocaleString()}
+              ? `(${Math.abs(
+                  Math.round(x.getValue() / (thousandToggle ? 1000 : 1))
+                ).toLocaleString()})`
+              : Math.round(x.getValue() / (thousandToggle ? 1000 : 1)).toLocaleString()}
           </span>
         </td>
       ),
@@ -414,7 +410,7 @@ const RollForward: React.FC = () => {
       },
       ...dynamicColumns,
     ];
-  }, [rollForwardData]);
+  }, [rollForwardData, thousandToggle]);
 
   const transformedData = useMemo(() => {
     return rollForwardData?.map((item) => {
@@ -441,25 +437,21 @@ const RollForward: React.FC = () => {
 
   // totalUnaccountedFor(dataLong);
 
-  const isHighlighted = (columnId: string): boolean => {
-    return [
-      "Assets BOP",
-      "MTM Total Gain Loss",
-      "Equity Returns",
-      "Total to Reinvest/Sell",
-      "Assets Post Reinvestment",
-      "Assets Post Rebalance",
-      "Assets EOP",
-    ].includes(columnId)
-      ? true
-      : false;
-  };
-
   return (
-    <main className="container mx-auto min-h-screen">
+    <main className="container mx-auto min-h-screen px-4">
       <div className="py-8 flex flex-col w-full overflow-x-auto overflow-y-auto">
         <div>
           <h3 className="text-xl font-semibold">Rollforward Summary</h3>
+        </div>
+
+        <div>
+          <Switch
+            checked={thousandToggle}
+            onChange={setThousandToggle}
+            className="group inline-flex h-6 w-11 items-center rounded-full bg-gray-200 transition data-[checked]:bg-blue-600"
+          >
+            <span className="size-4 translate-x-1 rounded-full bg-white transition group-data-[checked]:translate-x-6" />
+          </Switch>
         </div>
 
         <table className="mt-4 min-w-full border border-dark-600 border-collapse">

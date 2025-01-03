@@ -185,7 +185,7 @@ const tagMapping: Record<DebugItem, Tag> = {
   npv_bel_asset_run_noequity: "BEL No Equity",
 };
 
-type DataLong = {
+export type DataLong = {
   name: DebugItem;
   tag: Tag;
   values: string[];
