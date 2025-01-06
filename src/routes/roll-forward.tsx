@@ -1,5 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { Link } from "react-router";
+import { MoveLeft } from "lucide-react";
 import { sum } from "lodash";
 import {
   useReactTable,
@@ -343,7 +345,8 @@ const RollForward: React.FC = () => {
       values: number[];
     }[]
   >();
-  const [thousandToggle, setThousandToggle] = useState<boolean>(true);
+  const [loading, setLoading] = useState<boolean>(true); // Add loading state
+  const [thousandToggle, setThousandToggle] = useState<boolean>(false);
 
   const { dataLong } = useDataLong();
 
@@ -382,22 +385,25 @@ const RollForward: React.FC = () => {
     const dynamicColumns = Array.from({ length: numberOfColumns }, (_, i) => ({
       accessorKey: `${i + 1}`, // This is where we are skipping one
       header: `${i + 1}`,
-      cell: (x: CellContext<any, number>) => (
-        <td className="w-[115px] flex justify-between">
-          <span>$</span>
-          <span>
-            {x.getValue() === 0
-              ? "-"
-              : Math.round(x.getValue()) === 0
-              ? 0
-              : x.getValue() < 0
-              ? `(${Math.abs(
-                  Math.round(x.getValue() / (thousandToggle ? 1000 : 1))
-                ).toLocaleString()})`
-              : Math.round(x.getValue() / (thousandToggle ? 1000 : 1)).toLocaleString()}
-          </span>
-        </td>
-      ),
+      cell: (x: CellContext<any, number>) => {
+        const displayValue = x.getValue();
+        // const displayValue = thousandToggle ? value / 1000 : value;
+
+        return (
+          <td className="w-[115px] flex justify-between">
+            <span>$</span>
+            <span>
+              {displayValue === 0
+                ? "-"
+                : Math.round(displayValue) === 0
+                ? 0
+                : displayValue < 0
+                ? `(${Math.abs(Math.round(displayValue)).toLocaleString()})`
+                : Math.round(displayValue).toLocaleString()}
+            </span>
+          </td>
+        );
+      },
     }));
 
     return [
@@ -413,20 +419,28 @@ const RollForward: React.FC = () => {
   }, [rollForwardData, thousandToggle]);
 
   const transformedData = useMemo(() => {
+    if (!rollForwardData || rollForwardData.length === 0) {
+      return [];
+    }
+
     return rollForwardData?.map((item) => {
       const row: Record<string, number | string> = { month: item.name };
       item.values.forEach((value, index) => {
-        row[`${index}`] = value;
+        row[`${index}`] = thousandToggle ? value / 1000 : value;
       });
       return row;
     });
-  }, [rollForwardData]);
+  }, [rollForwardData, thousandToggle]);
 
   const table = useReactTable({
     data: transformedData ?? [],
     columns,
     getCoreRowModel: getCoreRowModel(),
   });
+
+  // useEffect(() => {
+  //   console.log(transformedData);
+  // }, [transformedData]);
 
   const totalUnaccountedFor = (dataLong: DataLong[]) => {
     const unAccountedForValues = balanceReconFormulas["Unaccounted For"](
@@ -439,66 +453,85 @@ const RollForward: React.FC = () => {
 
   return (
     <main className="container mx-auto min-h-screen px-4">
-      <div className="py-8 flex flex-col w-full overflow-x-auto overflow-y-auto">
-        <div>
-          <h3 className="text-xl font-semibold">Rollforward Summary</h3>
+      <div className="pt-8 flex flex-col w-full overflow-auto">
+        <div className="relative flex items-center gap-x-4 w-full justify-center">
+          <Link to="/" className="absolute left-0 h-full items-center flex">
+            <MoveLeft size={30} />
+          </Link>
+          <h1 className="text-2xl font-bold text-center">Roll Forward</h1>
         </div>
 
-        <div>
-          <Switch
-            checked={thousandToggle}
-            onChange={setThousandToggle}
-            className="group inline-flex h-6 w-11 items-center rounded-full bg-gray-200 transition data-[checked]:bg-blue-600"
-          >
-            <span className="size-4 translate-x-1 rounded-full bg-white transition group-data-[checked]:translate-x-6" />
-          </Switch>
-        </div>
+        {!transformedData[0]?.["1"] ? ( // Show loading message when data is not loaded
+          <div>Loading...</div>
+        ) : (
+          <div className="flex flex-col">
+            <div className="mt-4 flex items-center gap-x-2">
+              <p>$1</p>
+              <Switch
+                checked={thousandToggle}
+                onChange={setThousandToggle}
+                className="group inline-flex h-6 w-11 items-center rounded-full bg-dark-500 transition data-[checked]:bg-blue-600"
+              >
+                <span className="size-4 translate-x-1 rounded-full bg-white transition group-data-[checked]:translate-x-6" />
+              </Switch>
+              <p>$1000</p>
+            </div>
 
-        <table className="mt-4 min-w-full border border-dark-600 border-collapse">
-          <thead>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <tr key={headerGroup.id} className="divide-x divide-dark-600">
-                {headerGroup.headers.map((header, i) => (
-                  <th
-                    key={header.id}
-                    className={cn(
-                      "bg-dark-800 sticky top-0 px-4 py-2 text-right text-sm font-medium text-gray-300",
-                      i === 0 && "text-left"
-                    )}
-                  >
-                    {flexRender(header.column.columnDef.header, header.getContext())}
-                  </th>
-                ))}
-              </tr>
-            ))}
-          </thead>
-          <tbody className="">
-            {table.getRowModel().rows.map((row, i) => {
-              return (
-                <tr
-                  key={row.id}
-                  className={cn(
-                    isHighlighted(row.renderValue("month"))
-                      ? "border-y border-white divide-x divide-dark-600"
-                      : "divide-x divide-dark-600"
-                  )}
-                >
-                  {row.getVisibleCells().map((cell, i) => (
-                    <td
-                      key={cell.id}
-                      className={cn(
-                        "px-4 py-2 whitespace-nowrap bg-dark-700 text-right text-sm text-gray-100",
-                        !isHighlighted(row.renderValue("month")) && i === 0 ? "pl-8" : ""
-                      )}
-                    >
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </td>
+            <div className="mt-4">
+              <table className="min-w-full border border-dark-600 border-collapse overflow-x-auto overflow-y-auto">
+                <thead>
+                  {table.getHeaderGroups().map((headerGroup, r) => (
+                    <tr key={headerGroup.id} className={cn("divide-x divide-dark-600")}>
+                      {headerGroup.headers.map((header, i) => (
+                        <th
+                          key={header.id}
+                          className={cn(
+                            "bg-dark-800 px-4 py-2 text-right text-sm font-medium text-gray-300 z-10",
+                            i === 0 && "text-left sticky left-0 z-[2]"
+                          )}
+                        >
+                          {flexRender(
+                            header.column.columnDef.header,
+                            header.getContext()
+                          )}
+                        </th>
+                      ))}
+                    </tr>
                   ))}
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+                </thead>
+                <tbody className="">
+                  {table.getRowModel().rows.map((row, i) => {
+                    return (
+                      <tr
+                        key={row.id}
+                        className={cn(
+                          isHighlighted(row.renderValue("month"))
+                            ? "border-y border-white divide-x divide-dark-600"
+                            : "divide-x divide-dark-600"
+                        )}
+                      >
+                        {row.getVisibleCells().map((cell, i) => (
+                          <td
+                            key={cell.id}
+                            className={cn(
+                              "px-4 py-2 whitespace-nowrap bg-dark-700 text-right text-sm text-gray-100",
+                              i === 0 && "sticky left-0 z-[2] shadow-lg bg-dark-800",
+                              !isHighlighted(row.renderValue("month")) && i === 0
+                                ? "pl-8"
+                                : ""
+                            )}
+                          >
+                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                          </td>
+                        ))}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       </div>
     </main>
   );
