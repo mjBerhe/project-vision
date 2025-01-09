@@ -12,6 +12,8 @@ import { cn } from "../utils/global";
 
 import { NetSellReinvestChart } from "../components/graphs/net-sell-reinvest-chart";
 import { CumulativeAssetLiabilityCFs } from "../components/graphs/cumulative-asset-liability-cfs";
+import { BookYield } from "../components/graphs/book-yield";
+import { EOPPortfolioRatings } from "../components/graphs/eop-portfolio-ratings";
 
 const Graphs: React.FC = () => {
   const { dataLong } = useDataLong();
@@ -23,9 +25,19 @@ const Graphs: React.FC = () => {
       graphLarge: <NetSellReinvestChart dataLong={dataLong} size="lg" />,
     },
     {
-      id: 0,
+      id: 1,
       graphSmall: <CumulativeAssetLiabilityCFs dataLong={dataLong} size="sm" />,
       graphLarge: <CumulativeAssetLiabilityCFs dataLong={dataLong} size="lg" />,
+    },
+    {
+      id: 2,
+      graphSmall: <BookYield dataLong={dataLong} size="sm" />,
+      graphLarge: <BookYield dataLong={dataLong} size="lg" />,
+    },
+    {
+      id: 3,
+      graphSmall: <EOPPortfolioRatings dataLong={dataLong} size="sm" />,
+      graphLarge: <EOPPortfolioRatings dataLong={dataLong} size="lg" />,
     },
   ];
 

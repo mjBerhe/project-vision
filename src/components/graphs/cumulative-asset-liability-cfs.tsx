@@ -4,7 +4,7 @@ import {
   Line,
   LineChart,
   ReferenceLine,
-  Tooltip,
+  Legend,
   XAxis,
   YAxis,
 } from "recharts";
@@ -18,7 +18,6 @@ import {
   ChartTooltipContent,
 } from "../../components/ui/chart";
 import { DebugItem } from "../../types/roll-forward.types";
-import { div } from "motion/react-client";
 
 export const CumulativeAssetLiabilityCFs: React.FC<{
   dataLong: DataLong[];
@@ -52,7 +51,6 @@ export const CumulativeAssetLiabilityCFs: React.FC<{
     acc.push(cumulativeValue);
     return acc;
   }, [] as number[]);
-  // console.log(cumulativeAssetCF);
 
   const cumulativeLiabilityCF = netLiabilityCF.reduce((acc, value, index) => {
     const cumulativeValue = (acc[index - 1] || 0) + value;
@@ -117,14 +115,12 @@ export const CumulativeAssetLiabilityCFs: React.FC<{
               height={size === "lg" ? 55 : 30}
               minTickGap={1}
               ticks={[...tickArray]}
-              // label={f}
             >
               {size === "lg" && <Label value="Months" position="insideBottom" />}
             </XAxis>
             {size === "lg" && (
               <YAxis
                 // angle={-45}
-                padding={{}}
                 textAnchor="end"
                 width={10}
                 axisLine={false}
@@ -152,7 +148,9 @@ export const CumulativeAssetLiabilityCFs: React.FC<{
               strokeWidth={2}
               dot={false}
             />
-            {/* <Tooltip cursor={false} /> */}
+            {size === "lg" && (
+              <Legend verticalAlign="bottom" wrapperStyle={{ paddingTop: 5 }} />
+            )}
           </LineChart>
         </ChartContainer>
       </div>

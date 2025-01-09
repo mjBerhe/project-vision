@@ -18,6 +18,7 @@ import {
   ChartTooltipContent,
 } from "../../components/ui/chart";
 import { DebugItem } from "../../types/roll-forward.types";
+import { Legend } from "@headlessui/react";
 
 export const NetSellReinvestChart: React.FC<{
   dataLong: DataLong[];
@@ -124,7 +125,6 @@ export const NetSellReinvestChart: React.FC<{
               strokeWidth={2}
               dot={false}
             />
-            {/* <Tooltip cursor={false} /> */}
           </LineChart>
         </ChartContainer>
       </div>
