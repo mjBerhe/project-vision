@@ -14,6 +14,7 @@ import { NetSellReinvestChart } from "../components/graphs/net-sell-reinvest-cha
 import { CumulativeAssetLiabilityCFs } from "../components/graphs/cumulative-asset-liability-cfs";
 import { BookYield } from "../components/graphs/book-yield";
 import { EOPPortfolioRatings } from "../components/graphs/eop-portfolio-ratings";
+import { ChangeInSurplus } from "../components/graphs/change-in-surplus";
 
 const Graphs: React.FC = () => {
   const { dataLong } = useDataLong();
@@ -39,6 +40,11 @@ const Graphs: React.FC = () => {
       graphSmall: <EOPPortfolioRatings dataLong={dataLong} size="sm" />,
       graphLarge: <EOPPortfolioRatings dataLong={dataLong} size="lg" />,
     },
+    {
+      id: 4,
+      graphSmall: <ChangeInSurplus dataLong={dataLong} size="sm" />,
+      graphLarge: <ChangeInSurplus dataLong={dataLong} size="lg" />,
+    },
   ];
 
   return (
@@ -48,11 +54,11 @@ const Graphs: React.FC = () => {
           <Link to="/" className="absolute left-0 h-full items-center flex">
             <MoveLeft size={30} />
           </Link>
-          <h1 className="text-2xl font-bold text-center">Graphs</h1>
+          {/* <h1 className="text-2xl font-bold text-center">Graphs</h1> */}
         </div>
 
         <div className="mt-6 flex flex-wrap gap-4 justify-center">
-          {[...graphs, ...Array(16 - graphs.length).fill(null)].map((graph, i) =>
+          {[...graphs, ...Array(12 - graphs.length).fill(null)].map((graph, i) =>
             graph ? (
               <MorphingDialog
                 transition={{
@@ -64,7 +70,7 @@ const Graphs: React.FC = () => {
               >
                 <MorphingDialogTrigger
                   className={cn(
-                    "flex w-[370px] h-[300px] flex-col overflow-hidden cursor-pointer border p-4 border-dark-700 rounded-lg bg-dark-900/70 hover:bg-dark-900 shadow-lg"
+                    "flex w-[370px] h-[280px] flex-col overflow-hidden cursor-pointer border p-4 border-dark-700 rounded-lg bg-dark-900/70 hover:bg-dark-900 shadow-lg"
                   )}
                 >
                   {graph.graphSmall}

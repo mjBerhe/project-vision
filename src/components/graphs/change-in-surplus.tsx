@@ -9,7 +9,7 @@ import {
 } from "recharts";
 
 import type { DataLong } from "../../hooks/useDataLong";
-import { sumColumns } from "../../utils/roll-forward";
+import { sumColumns, cumulativeSum } from "../../utils/roll-forward";
 import {
   ChartConfig,
   ChartContainer,
@@ -18,30 +18,33 @@ import {
 } from "../../components/ui/chart";
 import { DebugItem } from "../../types/roll-forward.types";
 
-export const NetSellReinvestChart: React.FC<{
+export const ChangeInSurplus: React.FC<{
   dataLong: DataLong[];
   size: "sm" | "lg";
 }> = ({ dataLong, size }) => {
-  const filteredRows: DebugItem[] = [
-    "LiabilityCF_combined",
-    "swapcashflow",
-    "public_interest_pmt",
-    "private_interest_pmt",
-    "cml_interest_pmt",
-    "cmbs_interest_pmt",
-    "publicclo_interest_pmt",
-    "clo_interest_pmt",
-    "equity_interest_pmt",
-    "total_default_expense",
-    "total_investment_expense",
-    "other_investmentexpense",
-    "otherexpense",
-    "loc_cost",
-  ];
+  const injection = -100000000; // 100m
 
-  const data = sumColumns(
-    dataLong.filter((x) => filteredRows.includes(x.name)).map((x) => x.values)
+  // must change negative dividends to positive
+  const dividendValues = dataLong
+    .find((x) => x.name === "Dividends")
+    ?.values.map((value) => (value.includes("-") ? value.replace("-", "") : `-${value}`));
+
+  // must change positive dividends_neg to negative
+  const dividendNegValues = dataLong
+    .find((x) => x.name === "Dividends_neg")
+    ?.values.map((value) => (value.includes("-") ? value.replace("-", "") : `-${value}`));
+
+  if (!dividendValues || !dividendNegValues) {
+    return (
+      <div className="w-full h-full flex justify-center items-center">loading...</div>
+    );
+  }
+
+  // add the dividends, make it cumulative, add the injection LAST
+  const data = cumulativeSum(sumColumns([dividendValues, dividendNegValues])).map(
+    (x) => x + injection
   );
+  console.log(data);
 
   if (!data || data.length === 0) {
     return (
@@ -72,7 +75,7 @@ export const NetSellReinvestChart: React.FC<{
   return (
     <div>
       <div className="w-full flex flex-col">
-        <h1 className="font-semibold">Net Sell / Reinvest from Normal Activity</h1>
+        <h1 className="font-semibold">Change in Surplus</h1>
         <p className="text-sm/6 text-gray-400">$100 millions per month</p>
       </div>
       <div className="mt-4">

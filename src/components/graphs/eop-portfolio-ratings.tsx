@@ -97,7 +97,7 @@ export const EOPPortfolioRatings: React.FC<{
   );
 
   return (
-    <div>
+    <div className="h-full flex flex-col justify-between">
       <div className="w-full flex flex-col">
         <h1 className="font-semibold">EOP Asset Proportions by Rating</h1>
         <p className="text-sm/6 text-gray-400">%</p>

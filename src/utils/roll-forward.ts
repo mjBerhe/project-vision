@@ -22,3 +22,10 @@ export const subtractRows = (row1: string[], row2: string[]): number[] => {
     return isNaN(num1) || isNaN(num2) ? 0 : num1 - num2;
   });
 };
+
+export const cumulativeSum = (arr: number[]): number[] => {
+  return arr.reduce<number[]>((acc, value, index) => {
+    acc.push(index === 0 ? value : acc[index - 1] + value);
+    return acc;
+  }, []);
+};

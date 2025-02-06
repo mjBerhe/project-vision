@@ -4,7 +4,8 @@ import { invoke } from "@tauri-apps/api/core";
 import type { DebugItem, Tag } from "../types/roll-forward.types";
 
 const OUTPUT_PATH =
-  "C:/Users/mattberhe/pALM/pALM2.1_Sidecar_GDN_Assets/pALMLiability/pALMLauncher/data_GDNBMA_03312024_output/GDNSidecar_3.31_BaseCombined_Tax_wSwap/DebugInfo_Scenario_Sen_0001_0.csv";
+  // "C:/Users/mattberhe/pALM/pALM2.1_Sidecar_GDN_Assets/pALMLiability/pALMLauncher/data_GDNBMA_03312024_output/GDNSidecar_3.31_BaseCombined_Tax_wSwap/DebugInfo_Scenario_Sen_0001_0.csv";
+  "C:/Users/mattberhe/pALM/DebugInfo_Scenario_Sen_0001_0.csv";
 
 const targetNames: Set<DebugItem> = new Set([
   "MarketValue_MTM_0_NoChange",

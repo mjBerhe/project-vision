@@ -132,9 +132,7 @@ export const BookYield: React.FC<{
   return (
     <div>
       <div className="w-full flex flex-col">
-        <h1 className="font-semibold">
-          Book Yield by Class and Investment Grade Quality
-        </h1>
+        <h1 className="font-semibold">Book Yield by Class and Quality</h1>
         <p className="text-sm/6 text-gray-400">%</p>
       </div>
       <div className="mt-4">
